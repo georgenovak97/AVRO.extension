@@ -121,6 +121,8 @@ def _inline(value, base_path="", root_path=""):
                    lambda match: protect_span(match), value,
                    flags=re.IGNORECASE)
     value = re.sub(r"</span\s*>", protect_span, value, flags=re.IGNORECASE)
+    value = re.sub(r"<u\s*>", protect_span, value, flags=re.IGNORECASE)
+    value = re.sub(r"</u\s*>", protect_span, value, flags=re.IGNORECASE)
     value = _escape(value)
     value = re.sub(r"!\[\[([^]|]+)(?:\|([^]]+))?\]\]",
                    lambda m: '<img alt="{}" src="{}">'.format(
@@ -143,8 +145,13 @@ def _inline(value, base_path="", root_path=""):
     value = re.sub(r"(?<![*\w])\*([^*]+)\*(?!\w)|(?<![_\w])_([^_]+)_(?!\w)",
                    lambda m: "<em>{}</em>".format(m.group(1) or m.group(2)), value)
     for index, span in enumerate(spans):
-        if span.lower().startswith("</span"):
+        lower = span.lower()
+        if lower.startswith("</span"):
             replacement = "</span>"
+        elif lower.startswith("<u"):
+            replacement = "<u>"
+        elif lower.startswith("</u"):
+            replacement = "</u>"
         else:
             style = re.search(r"style\s*=\s*([\"'])([^\"']*)\1", span,
                               flags=re.IGNORECASE).group(2)
