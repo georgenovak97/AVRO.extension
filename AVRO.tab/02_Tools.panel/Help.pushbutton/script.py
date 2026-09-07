@@ -25,7 +25,6 @@ from System.Windows.Shapes import Path as WpfPath
 from System.Windows.Forms import FolderBrowserDialog, DialogResult
 from System.Diagnostics import Process
 from System.Threading import ThreadPool, WaitCallback
-from System.Windows.Threading import Dispatcher, DispatcherFrame
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _EXT_LIB = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "..", "lib"))
@@ -62,7 +61,6 @@ class HelpDialog(object):
         self._html_dir = None
         self._html_counter = 0
         self._file_load_generation = 0
-        self._dispatcher_frame = None
 
     def _palette(self):
         return ui_theme.DARK if config.load().get("ui_theme") == "dark" else ui_theme.LIGHT
@@ -573,8 +571,6 @@ class HelpDialog(object):
 
     def _on_window_closed(self, sender, args):
         ui_notify.unregister_theme_listener(self._theme_changed)
-        if self._dispatcher_frame is not None:
-            self._dispatcher_frame.Continue = False
         if self._html_dir and os.path.isdir(self._html_dir):
             try:
                 shutil.rmtree(self._html_dir)
@@ -591,11 +587,7 @@ class HelpDialog(object):
         self.win.Loaded += self._on_window_loaded
         self.win.Closed += self._on_window_closed
         HelpDialog._active_instance = self
-        self._dispatcher_frame = DispatcherFrame()
         self.win.Show()
-        # Keep the IronPython script scope alive while the modeless window
-        # handles events. Show() alone lets pyRevit release the scope.
-        Dispatcher.PushFrame(self._dispatcher_frame)
 
 
 def _show_help():

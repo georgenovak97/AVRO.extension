@@ -6,3 +6,5 @@ tooltip:
   en_us: "Local documentation in Markdown format."
 author: AVRO Consulting
 min_revit_ver: 2020
+engine:
+  persistent: true
