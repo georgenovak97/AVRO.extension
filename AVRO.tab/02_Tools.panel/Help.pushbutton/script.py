@@ -155,7 +155,8 @@ class HelpDialog(object):
         path = getattr(sender, "Tag", None)
         if (not self._selecting_tree_file and path and
                 os.path.isfile(path)):
-            self._show_file(path)
+            self.win.Dispatcher.BeginInvoke(
+                System.Action(lambda: self._show_file(path)))
 
     def _select_file_in_tree(self, target_path):
         """Expand the document path and highlight the opened file."""
@@ -339,6 +340,8 @@ class HelpDialog(object):
         args.Cancel = True
 
     def _show_file(self, path):
+        if self.win is None or self.ui is None:
+            return
         try:
             text = help_scanner.read_text(path)
             if not self._history_navigating:
@@ -402,12 +405,14 @@ class HelpDialog(object):
     def _toc_selected(self, sender, args):
         title = getattr(sender, "Tag", None)
         if title and self.current_path:
-            self._navigate_html(help_renderer.themed_html(
-                self._current_text, self._palette(),
-                os.path.basename(self.current_path),
-                os.path.dirname(self.current_path),
-                help_renderer._slug(title),
-                config.load().get("docs_path") or ""))
+            self.win.Dispatcher.BeginInvoke(
+                System.Action(lambda: self._navigate_html(
+                    help_renderer.themed_html(
+                        self._current_text, self._palette(),
+                        os.path.basename(self.current_path),
+                        os.path.dirname(self.current_path),
+                        help_renderer._slug(title),
+                        config.load().get("docs_path") or ""))))
 
     def _navigate_html(self, html):
         if self.win is None or self.ui is None:
