@@ -5,7 +5,6 @@ import codecs
 import shutil
 import sys
 import tempfile
-import time
 import System
 
 import clr
@@ -22,7 +21,6 @@ from System.Windows.Controls import TreeViewItem, TextBlock, StackPanel, Orienta
 from System.Windows.Media import Color, Geometry, SolidColorBrush, Stretch
 from System.Windows.Media.Imaging import BitmapImage
 from System.Windows.Documents import Bold, Run
-from System.Windows.Input import Key
 from System.Windows.Shapes import Path as WpfPath
 from System.Windows.Forms import FolderBrowserDialog, DialogResult
 from System.Diagnostics import Process
@@ -61,7 +59,6 @@ class HelpDialog(object):
         self._history_navigating = False
         self._selecting_tree_file = False
         self._selecting_search = False
-        self._last_escape_press_at = 0.0
         self._html_dir = None
         self._html_counter = 0
         self._file_load_generation = 0
@@ -504,24 +501,11 @@ class HelpDialog(object):
         if self.current_path and os.path.isfile(self.current_path):
             self._show_file(self.current_path)
 
-    def _on_window_keydown(self, sender, args):
-        if args.Key != Key.Escape:
-            self._last_escape_press_at = 0.0
-            return
-        now = time.time()
-        if now - self._last_escape_press_at <= 0.6:
-            self._last_escape_press_at = 0.0
-            args.Handled = True
-            self.win.Close()
-            return
-        self._last_escape_press_at = now
-
     def _init_window(self):
         self.win = ui_utils.load_xaml(_THIS_DIR)
         icon_path = os.path.join(_THIS_DIR, "icon.png")
         if os.path.isfile(icon_path):
             self.win.Icon = BitmapImage(System.Uri(icon_path))
-        self.win.PreviewKeyDown += self._on_window_keydown
         self.ui = ui_utils.NamedUiControls(
             self.win, ("DocumentTree", "MarkdownBrowser", "PathText", "BtnBack",
                        "BtnForward", "BtnHome", "BtnBookmark", "BookmarkIcon",
