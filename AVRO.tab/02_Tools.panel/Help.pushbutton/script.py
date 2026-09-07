@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """AVRO Help: browse and read a local Obsidian Markdown vault."""
 import os
+import codecs
+import shutil
 import sys
+import tempfile
 import time
 import System
 
@@ -57,6 +60,8 @@ class HelpDialog(object):
         self._selecting_tree_file = False
         self._selecting_search = False
         self._last_escape_press_at = 0.0
+        self._html_dir = None
+        self._html_counter = 0
 
     def _palette(self):
         return ui_theme.DARK if config.load().get("ui_theme") == "dark" else ui_theme.LIGHT
@@ -285,8 +290,7 @@ class HelpDialog(object):
                 config.load_bookmarks(), path) if os.path.isfile(item)]
             recent = [item for item in config.documents_under_path(
                 config.load_recent_documents(), path) if os.path.isfile(item)]
-            self.ui.MarkdownBrowser.NavigateToString(
-                help_renderer.home_page_html(
+            self._navigate_html(help_renderer.home_page_html(
                 bookmarks, recent, self._palette(),
                 i18n.t("help_bookmarks_section"),
                 i18n.t("help_recent_section"),
@@ -303,11 +307,10 @@ class HelpDialog(object):
                     results.insert(0, result)
             except Exception:
                 pass
-        self.ui.MarkdownBrowser.NavigateToString(
-            help_renderer.search_results_html(
-                results, query, self._palette(), i18n.t("help_search"),
-                i18n.t("help_search_no_results"),
-                i18n.t("help_search_results")))
+        self._navigate_html(help_renderer.search_results_html(
+            results, query, self._palette(), i18n.t("help_search"),
+            i18n.t("help_search_no_results"),
+            i18n.t("help_search_results")))
 
     def _clear_search(self):
         self.ui.SearchBox.Text = ""
@@ -353,11 +356,10 @@ class HelpDialog(object):
             config.add_recent_document(path)
             self.ui.PathText.Text = os.path.splitext(os.path.basename(path))[0]
             self.ui.StatusText.Text = path
-            self.ui.MarkdownBrowser.NavigateToString(
-                help_renderer.themed_html(
-                    text, self._palette(), os.path.basename(path),
-                    os.path.dirname(path), "",
-                    config.load().get("docs_path") or ""))
+            self._navigate_html(help_renderer.themed_html(
+                text, self._palette(), os.path.basename(path),
+                os.path.dirname(path), "",
+                config.load().get("docs_path") or ""))
             self._headings = help_toc.extract_headings(text)
             self.ui.TocTitle.Text = i18n.t("help_toc_title")
             self._fill_toc()
@@ -400,13 +402,28 @@ class HelpDialog(object):
     def _toc_selected(self, sender, args):
         title = getattr(sender, "Tag", None)
         if title and self.current_path:
-            self.ui.MarkdownBrowser.NavigateToString(
-                help_renderer.themed_html(
-                    self._current_text, self._palette(),
-                    os.path.basename(self.current_path),
-                    os.path.dirname(self.current_path),
-                    help_renderer._slug(title),
-                    config.load().get("docs_path") or ""))
+            self._navigate_html(help_renderer.themed_html(
+                self._current_text, self._palette(),
+                os.path.basename(self.current_path),
+                os.path.dirname(self.current_path),
+                help_renderer._slug(title),
+                config.load().get("docs_path") or ""))
+
+    def _navigate_html(self, html):
+        if self.win is None or self.ui is None:
+            return
+        try:
+            if self._html_dir is None:
+                self._html_dir = tempfile.mkdtemp(prefix="avro_help_")
+            self._html_counter += 1
+            path = os.path.join(
+                self._html_dir, "page_{}.html".format(self._html_counter))
+            with codecs.open(path, "w", "utf-8") as stream:
+                stream.write(html)
+            self.ui.MarkdownBrowser.Navigate(System.Uri(path))
+        except Exception as ex:
+            self.ui.PathText.Text = u"{}: {}".format(
+                i18n.t("help_select_file"), ex)
 
     def _choose_documents(self, sender, args):
         dialog = FolderBrowserDialog()
@@ -516,6 +533,11 @@ class HelpDialog(object):
 
     def _on_window_closed(self, sender, args):
         ui_notify.unregister_theme_listener(self._theme_changed)
+        if self._html_dir and os.path.isdir(self._html_dir):
+            try:
+                shutil.rmtree(self._html_dir)
+            except Exception:
+                pass
         if HelpDialog._active_instance is self:
             HelpDialog._active_instance = None
         self.win = None
