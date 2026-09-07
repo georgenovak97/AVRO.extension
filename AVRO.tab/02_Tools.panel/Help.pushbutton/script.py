@@ -285,7 +285,8 @@ class HelpDialog(object):
                 config.load_bookmarks(), path) if os.path.isfile(item)]
             recent = [item for item in config.documents_under_path(
                 config.load_recent_documents(), path) if os.path.isfile(item)]
-            self._navigate_html(help_renderer.home_page_html(
+            self.ui.MarkdownBrowser.NavigateToString(
+                help_renderer.home_page_html(
                 bookmarks, recent, self._palette(),
                 i18n.t("help_bookmarks_section"),
                 i18n.t("help_recent_section"),
@@ -302,9 +303,11 @@ class HelpDialog(object):
                     results.insert(0, result)
             except Exception:
                 pass
-        self._navigate_html(help_renderer.search_results_html(
-            results, query, self._palette(), i18n.t("help_search"),
-            i18n.t("help_search_no_results"), i18n.t("help_search_results")))
+        self.ui.MarkdownBrowser.NavigateToString(
+            help_renderer.search_results_html(
+                results, query, self._palette(), i18n.t("help_search"),
+                i18n.t("help_search_no_results"),
+                i18n.t("help_search_results")))
 
     def _clear_search(self):
         self.ui.SearchBox.Text = ""
@@ -325,8 +328,11 @@ class HelpDialog(object):
         query = uri.Query
         if query.startswith("?path="):
             path = System.Uri.UnescapeDataString(query[6:]).replace("/", os.sep)
+            args.Cancel = True
             if os.path.isfile(path):
-                self._show_file(path)
+                self.win.Dispatcher.BeginInvoke(
+                    System.Action(lambda: self._show_file(path)))
+            return
         args.Cancel = True
 
     def _show_file(self, path):
@@ -347,10 +353,11 @@ class HelpDialog(object):
             config.add_recent_document(path)
             self.ui.PathText.Text = os.path.splitext(os.path.basename(path))[0]
             self.ui.StatusText.Text = path
-            self._navigate_html(help_renderer.themed_html(
-                text, self._palette(), os.path.basename(path),
-                os.path.dirname(path), "",
-                config.load().get("docs_path") or ""))
+            self.ui.MarkdownBrowser.NavigateToString(
+                help_renderer.themed_html(
+                    text, self._palette(), os.path.basename(path),
+                    os.path.dirname(path), "",
+                    config.load().get("docs_path") or ""))
             self._headings = help_toc.extract_headings(text)
             self.ui.TocTitle.Text = i18n.t("help_toc_title")
             self._fill_toc()
@@ -393,22 +400,13 @@ class HelpDialog(object):
     def _toc_selected(self, sender, args):
         title = getattr(sender, "Tag", None)
         if title and self.current_path:
-            self._navigate_html(help_renderer.themed_html(
-                self._current_text, self._palette(),
-                os.path.basename(self.current_path),
-                os.path.dirname(self.current_path),
-                help_renderer._slug(title),
-                config.load().get("docs_path") or ""))
-
-    def _navigate_html(self, html):
-        if self.win is None:
-            return
-
-        def navigate():
-            if self.win is not None and self.ui is not None:
-                self.ui.MarkdownBrowser.NavigateToString(html)
-
-        self.win.Dispatcher.BeginInvoke(System.Action(navigate))
+            self.ui.MarkdownBrowser.NavigateToString(
+                help_renderer.themed_html(
+                    self._current_text, self._palette(),
+                    os.path.basename(self.current_path),
+                    os.path.dirname(self.current_path),
+                    help_renderer._slug(title),
+                    config.load().get("docs_path") or ""))
 
     def _choose_documents(self, sender, args):
         dialog = FolderBrowserDialog()
