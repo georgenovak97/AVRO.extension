@@ -136,7 +136,7 @@ def _inline(value, base_path="", root_path=""):
                    lambda m: '<span class="wikilink">{}</span>'.format(
                        m.group(2) or m.group(1)), value)
     value = re.sub(r"`([^`]+)`", r"<code>\1</code>", value)
-    value = re.sub(r"==(.+?)==", r"<mark>\1</mark>", value)
+    value = re.sub(r"==(.+?)==", r'<span class="highlight">\1</span>', value)
     value = re.sub(r"\*\*(.+?)\*\*|__(.+?)__",
                    lambda m: "<strong>{}</strong>".format(m.group(1) or m.group(2)), value)
     value = re.sub(r"~~(.+?)~~", r"<del>\1</del>", value)
@@ -306,7 +306,7 @@ def markdown_to_html(text, title="", base_path="", scroll_to="", root_path=""):
     return """<!doctype html><html><head><meta charset="utf-8">@@base@@<style>
 body{font-family:'Segoe UI',Arial,sans-serif;background:@@bg@@;color:@@text@@;margin:26px 34px;line-height:1.45;font-size:14px}
 h1,h2,h3,h4,h5,h6{color:@@text@@;font-weight:600;margin:1.15em 0 .45em}h1{font-size:28px}h2{font-size:22px}h3{font-size:18px}
- p{margin:.55em 0}ol,ul{margin:8px 0;padding-left:26px}li{margin:1px 0;line-height:1.35}.task-list{list-style:none;padding-left:0}.task-list li{margin-left:0}.task-list input{margin-right:6px;width:14px;height:14px;vertical-align:middle}a{color:@@link@@}code,pre,blockquote{background:@@codebg@@}code{padding:2px 5px;border-radius:3px}pre{padding:14px;overflow:auto;border-left:3px solid @@link@@}blockquote{border-left:4px solid @@link@@;margin:12px 0;padding:4px 14px}mark{background:#d9b44a}.wikilink{color:@@link@@}img{max-width:100%}
+ p{margin:.55em 0}ol,ul{margin:8px 0;padding-left:26px}li{margin:1px 0;line-height:1.35}.task-list{list-style:none;padding-left:0}.task-list li{margin-left:0}.task-list input{margin-right:6px;width:14px;height:14px;vertical-align:middle}a{color:@@link@@}code,pre,blockquote{background:@@codebg@@}code{padding:2px 5px;border-radius:3px}pre{padding:14px;overflow:auto;border-left:3px solid @@link@@}blockquote{border-left:4px solid @@link@@;margin:12px 0;padding:4px 14px}.highlight{background:#d9b44a;padding:0 2px;border-radius:2px}.wikilink{color:@@link@@}img{max-width:100%}
 table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px}th,td{border:1px solid @@border@@;padding:7px 10px;text-align:left;vertical-align:top}th{background:@@codebg@@;font-weight:600}.callout{padding:10px 14px;margin:12px 0;border-left:4px solid @@link@@;background:@@codebg@@}
 </style></head><body>@@content@@@@scroll@@</body></html>""".replace(
         "@@base@@", base).replace("@@content@@", "\n".join(html)).replace(
