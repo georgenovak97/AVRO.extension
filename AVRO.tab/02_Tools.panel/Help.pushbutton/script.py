@@ -26,6 +26,7 @@ from System.Windows.Input import Key
 from System.Windows.Shapes import Path as WpfPath
 from System.Windows.Forms import FolderBrowserDialog, DialogResult
 from System.Diagnostics import Process
+from System.Threading import ThreadPool, WaitCallback
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _EXT_LIB = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "..", "lib"))
@@ -63,6 +64,7 @@ class HelpDialog(object):
         self._html_dir = None
         self._html_counter = 0
         self._home_loaded = False
+        self._file_load_generation = 0
 
     def _palette(self):
         return ui_theme.DARK if config.load().get("ui_theme") == "dark" else ui_theme.LIGHT
@@ -346,8 +348,44 @@ class HelpDialog(object):
     def _show_file(self, path):
         if self.win is None or self.ui is None:
             return
+
+        self._file_load_generation += 1
+        generation = self._file_load_generation
+        palette = self._palette()
+        docs_path = config.load().get("docs_path") or ""
+        dispatcher = self.win.Dispatcher
+
+        def worker(state):
+            try:
+                text = help_scanner.read_text(path)
+                html = help_renderer.themed_html(
+                    text, palette, os.path.basename(path),
+                    os.path.dirname(path), "", docs_path)
+                headings = help_toc.extract_headings(text)
+                error = None
+            except Exception as ex:
+                text = None
+                html = None
+                headings = None
+                error = ex
+
+            def apply_result():
+                if (self.win is None or self.ui is None or
+                        generation != self._file_load_generation):
+                    return
+                self._apply_file_result(
+                    path, text, html, headings, error)
+
+            dispatcher.BeginInvoke(System.Action(apply_result))
+
+        ThreadPool.QueueUserWorkItem(WaitCallback(worker))
+
+    def _apply_file_result(self, path, text, html, headings, error):
+        if error is not None:
+            self.ui.PathText.Text = u"{}: {}".format(
+                i18n.t("help_select_file"), error)
+            return
         try:
-            text = help_scanner.read_text(path)
             if not self._history_navigating:
                 self._history = self._history[:self._history_index + 1]
                 if self.search_mode and (
@@ -363,11 +401,8 @@ class HelpDialog(object):
             config.add_recent_document(path)
             self.ui.PathText.Text = os.path.splitext(os.path.basename(path))[0]
             self.ui.StatusText.Text = path
-            self._open_html_external(help_renderer.themed_html(
-                text, self._palette(), os.path.basename(path),
-                os.path.dirname(path), "",
-                config.load().get("docs_path") or ""))
-            self._headings = help_toc.extract_headings(text)
+            self._open_html_external(html)
+            self._headings = headings
             self.ui.TocTitle.Text = i18n.t("help_toc_title")
             self._fill_toc()
             self._select_file_in_tree(path)
@@ -449,6 +484,11 @@ class HelpDialog(object):
         return path
 
     def _choose_documents(self, sender, args):
+        if self.win is not None:
+            self.win.Dispatcher.BeginInvoke(
+                System.Action(self._choose_documents_now))
+
+    def _choose_documents_now(self):
         dialog = FolderBrowserDialog()
         dialog.Description = i18n.t("help_btn_documents_tooltip")
         current = config.load().get("docs_path") or ""
@@ -464,6 +504,11 @@ class HelpDialog(object):
             self._go_home()
 
     def _refresh_documents(self, sender, args):
+        if self.win is not None:
+            self.win.Dispatcher.BeginInvoke(
+                System.Action(self._refresh_documents_now))
+
+    def _refresh_documents_now(self):
         docs_path = config.load().get("docs_path") or ""
         config.prune_bookmarks(docs_path)
         config.prune_recent_documents(docs_path)
