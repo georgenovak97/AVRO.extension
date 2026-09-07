@@ -285,13 +285,12 @@ class HelpDialog(object):
                 config.load_bookmarks(), path) if os.path.isfile(item)]
             recent = [item for item in config.documents_under_path(
                 config.load_recent_documents(), path) if os.path.isfile(item)]
-            self.ui.MarkdownBrowser.NavigateToString(
-                help_renderer.home_page_html(
-                    bookmarks, recent, self._palette(),
-                    i18n.t("help_bookmarks_section"),
-                    i18n.t("help_recent_section"),
-                    i18n.t("help_bookmarks_empty"),
-                    i18n.t("help_recent_empty")))
+            self._navigate_html(help_renderer.home_page_html(
+                bookmarks, recent, self._palette(),
+                i18n.t("help_bookmarks_section"),
+                i18n.t("help_recent_section"),
+                i18n.t("help_bookmarks_empty"),
+                i18n.t("help_recent_empty")))
             return
         results = help_scanner.search_documents(path, query)
         if os.path.isfile(query) and query.lower().endswith(".md"):
@@ -303,7 +302,7 @@ class HelpDialog(object):
                     results.insert(0, result)
             except Exception:
                 pass
-        self.ui.MarkdownBrowser.NavigateToString(help_renderer.search_results_html(
+        self._navigate_html(help_renderer.search_results_html(
             results, query, self._palette(), i18n.t("help_search"),
             i18n.t("help_search_no_results"), i18n.t("help_search_results")))
 
@@ -348,11 +347,10 @@ class HelpDialog(object):
             config.add_recent_document(path)
             self.ui.PathText.Text = os.path.splitext(os.path.basename(path))[0]
             self.ui.StatusText.Text = path
-            self.ui.MarkdownBrowser.NavigateToString(
-                help_renderer.themed_html(
-                    text, self._palette(), os.path.basename(path),
-                    os.path.dirname(path), "",
-                    config.load().get("docs_path") or ""))
+            self._navigate_html(help_renderer.themed_html(
+                text, self._palette(), os.path.basename(path),
+                os.path.dirname(path), "",
+                config.load().get("docs_path") or ""))
             self._headings = help_toc.extract_headings(text)
             self.ui.TocTitle.Text = i18n.t("help_toc_title")
             self._fill_toc()
@@ -395,13 +393,22 @@ class HelpDialog(object):
     def _toc_selected(self, sender, args):
         title = getattr(sender, "Tag", None)
         if title and self.current_path:
-            self.ui.MarkdownBrowser.NavigateToString(
-                help_renderer.themed_html(
-                    self._current_text, self._palette(),
-                    os.path.basename(self.current_path),
-                    os.path.dirname(self.current_path),
-                    help_renderer._slug(title),
-                    config.load().get("docs_path") or ""))
+            self._navigate_html(help_renderer.themed_html(
+                self._current_text, self._palette(),
+                os.path.basename(self.current_path),
+                os.path.dirname(self.current_path),
+                help_renderer._slug(title),
+                config.load().get("docs_path") or ""))
+
+    def _navigate_html(self, html):
+        if self.win is None:
+            return
+
+        def navigate():
+            if self.win is not None and self.ui is not None:
+                self.ui.MarkdownBrowser.NavigateToString(html)
+
+        self.win.Dispatcher.BeginInvoke(System.Action(navigate))
 
     def _choose_documents(self, sender, args):
         dialog = FolderBrowserDialog()
@@ -464,6 +471,8 @@ class HelpDialog(object):
         self.ui.SearchBox.TextChanged += lambda sender, args: self.search_mode and self._run_search(sender.Text)
         self.ui.BtnClearSearch.Click += lambda sender, args: self._clear_search()
         ui_notify.register_theme_listener(self._theme_changed)
+
+    def _on_window_loaded(self, sender, args):
         self._load_tree()
         self._search_selected(None, None)
 
@@ -517,6 +526,7 @@ class HelpDialog(object):
     def show(self):
         i18n.init_from_config()
         self._init_window()
+        self.win.Loaded += self._on_window_loaded
         self.win.Closed += self._on_window_closed
         HelpDialog._active_instance = self
         self.win.Show()
