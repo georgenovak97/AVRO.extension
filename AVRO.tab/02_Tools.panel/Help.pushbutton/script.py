@@ -64,7 +64,6 @@ class HelpDialog(object):
         self._last_escape_press_at = 0.0
         self._html_dir = None
         self._html_counter = 0
-        self._home_loaded = False
         self._file_load_generation = 0
         self._dispatcher_frame = None
 
@@ -296,15 +295,12 @@ class HelpDialog(object):
                 config.load_bookmarks(), path) if os.path.isfile(item)]
             recent = [item for item in config.documents_under_path(
                 config.load_recent_documents(), path) if os.path.isfile(item)]
-            if self._home_loaded:
-                return
             self._navigate_html(help_renderer.home_page_html(
                 bookmarks, recent, self._palette(),
                 i18n.t("help_bookmarks_section"),
                 i18n.t("help_recent_section"),
                 i18n.t("help_bookmarks_empty"),
                 i18n.t("help_recent_empty")))
-            self._home_loaded = True
             return
         results = help_scanner.search_documents(path, query)
         if os.path.isfile(query) and query.lower().endswith(".md"):
@@ -316,7 +312,7 @@ class HelpDialog(object):
                     results.insert(0, result)
             except Exception:
                 pass
-        self._open_html_external(help_renderer.search_results_html(
+        self._navigate_html(help_renderer.search_results_html(
             results, query, self._palette(), i18n.t("help_search"),
             i18n.t("help_search_no_results"),
             i18n.t("help_search_results")))
@@ -403,7 +399,7 @@ class HelpDialog(object):
             config.add_recent_document(path)
             self.ui.PathText.Text = os.path.splitext(os.path.basename(path))[0]
             self.ui.StatusText.Text = path
-            self._open_html_external(html)
+            self._navigate_html(html)
             self._headings = headings
             self.ui.TocTitle.Text = i18n.t("help_toc_title")
             self._fill_toc()
@@ -447,7 +443,7 @@ class HelpDialog(object):
         title = getattr(sender, "Tag", None)
         if title and self.current_path:
             self.win.Dispatcher.BeginInvoke(
-                System.Action(lambda: self._open_html_external(
+                System.Action(lambda: self._navigate_html(
                     help_renderer.themed_html(
                         self._current_text, self._palette(),
                         os.path.basename(self.current_path),
@@ -461,16 +457,6 @@ class HelpDialog(object):
         try:
             path = self._write_html_file(html)
             self.ui.MarkdownBrowser.Navigate(System.Uri(path))
-        except Exception as ex:
-            self.ui.PathText.Text = u"{}: {}".format(
-                i18n.t("help_select_file"), ex)
-
-    def _open_html_external(self, html):
-        if self.win is None or self.ui is None:
-            return
-        try:
-            path = self._write_html_file(html)
-            Process.Start(path)
         except Exception as ex:
             self.ui.PathText.Text = u"{}: {}".format(
                 i18n.t("help_select_file"), ex)
