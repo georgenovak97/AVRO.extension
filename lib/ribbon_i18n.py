@@ -12,6 +12,7 @@ _RIBBON_AUTHOR = u"AVRO Consulting"
 # Revit internal command names (see pyRevit Bundle Name footer).
 _BUNDLE_SETTINGS = u"Settings"
 _BUNDLE_FAMILY_BROWSER = u"FamilyBrowser"  # matches FamilyBrowser.pushbutton folder
+_BUNDLE_HELP = u"Help"
 
 
 def tab_has_avro_settings_panel(tab):
@@ -143,14 +144,9 @@ def _find_avro_pyrvt_tab():
     return None
 
 
-def _apply_buttons_via_pyrevit(pyrvt_tab, new_settings, new_settings_tip,
-                               new_fm, new_fm_tip):
+def _apply_buttons_via_pyrevit(pyrvt_tab, specs):
     """Update tooltips through pyRevit (same path as bundle reload)."""
     updated = False
-    specs = (
-        (_BUNDLE_SETTINGS, new_settings, new_settings_tip),
-        (_BUNDLE_FAMILY_BROWSER, new_fm, new_fm_tip),
-    )
     for bundle_name, title, description in specs:
         btn = pyrvt_tab.find_child(bundle_name)
         if btn is None:
@@ -434,12 +430,16 @@ def apply(lang=None):
         u"Family Manager",
     }
     fm_tips = _texts_for_key("ribbon_tooltip")
+    help_names = _texts_for_key("help_ribbon_title")
+    help_tips = _texts_for_key("help_ribbon_tooltip")
 
     new_tab = i18n.t("tab_title")
     new_settings = i18n.t("settings_dialog_title")
     new_settings_tip = i18n.t("settings_ribbon_tooltip")
     new_fm = i18n.t("ribbon_title")
     new_fm_tip = i18n.t("ribbon_tooltip")
+    new_help = i18n.t("help_ribbon_title")
+    new_help_tip = i18n.t("help_ribbon_tooltip")
 
     tab = find_avro_tab()
     pyrvt_tab = _find_avro_pyrvt_tab()
@@ -454,8 +454,11 @@ def apply(lang=None):
             updated = True
         if pyrvt_tab is not None:
             if _apply_buttons_via_pyrevit(
-                    pyrvt_tab, new_settings, new_settings_tip,
-                    new_fm, new_fm_tip):
+                    pyrvt_tab, (
+                        (_BUNDLE_SETTINGS, new_settings, new_settings_tip),
+                        (_BUNDLE_FAMILY_BROWSER, new_fm, new_fm_tip),
+                        (_BUNDLE_HELP, new_help, new_help_tip),
+                    )):
                 updated = True
         if tab is None:
             return updated
@@ -496,6 +499,12 @@ def apply(lang=None):
                     _set_item_pyrevit_tooltip(
                         item, new_fm, new_fm_tip,
                         _BUNDLE_FAMILY_BROWSER)
+                elif (bundle_id == _BUNDLE_HELP
+                        or label in help_names
+                        or _tip_matches(tip, help_tips)):
+                    _set_item_label(item, new_help)
+                    _set_item_pyrevit_tooltip(
+                        item, new_help, new_help_tip, _BUNDLE_HELP)
     except Exception:
         return False
     return updated
