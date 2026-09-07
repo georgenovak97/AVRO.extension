@@ -13,7 +13,7 @@ clr.AddReference("System.Windows.Forms")
 
 from System.Windows import (
     Thickness, VerticalAlignment, Visibility, TextWrapping, FontWeights,
-    GridLength, GridUnitType,
+    GridLength, GridUnitType, WindowState,
 )
 from System.Windows.Controls import TreeViewItem, TextBlock, StackPanel, Orientation, ListBoxItem
 from System.Windows.Media import Color, Geometry, SolidColorBrush, Stretch
@@ -40,6 +40,8 @@ import ui_utils
 
 
 class HelpDialog(object):
+    _active_instance = None
+
     def __init__(self):
         self.win = None
         self.ui = None
@@ -505,15 +507,29 @@ class HelpDialog(object):
     def _on_window_closing(self, sender, args):
         self._save_panel_widths()
 
+    def _on_window_closed(self, sender, args):
+        ui_notify.unregister_theme_listener(self._theme_changed)
+        if HelpDialog._active_instance is self:
+            HelpDialog._active_instance = None
+        self.win = None
+        self.ui = None
+
     def show(self):
         i18n.init_from_config()
         self._init_window()
-        try:
-            self.win.ShowDialog()
-        finally:
-            ui_notify.unregister_theme_listener(self._theme_changed)
-            self.win = None
-            self.ui = None
+        self.win.Closed += self._on_window_closed
+        HelpDialog._active_instance = self
+        self.win.Show()
 
 
-HelpDialog().show()
+def _show_help():
+    active = HelpDialog._active_instance
+    if active is not None and active.win is not None:
+        if active.win.WindowState == WindowState.Minimized:
+            active.win.WindowState = WindowState.Normal
+        active.win.Activate()
+        return
+    HelpDialog().show()
+
+
+_show_help()
